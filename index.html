@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Find Your People – Interactive Bingo Card</title>
+  <!-- Google Fonts: Fredoka for playful headings & Plus Jakarta Sans for clean, readable UI -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ==========================================================================
+       1. DESIGN TOKENS & BASE RESET
+       ========================================================================== */
+    :root {
+      --bg-gradient: linear-gradient(145deg, #fdfbfb 0%, #f1f5f9 50%, #e0f2fe 100%);
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-light: #94a3b8;
+
+      /* Completed State Blue */
+      --completed-blue: #2563eb;
+      --completed-blue-dark: #1d4ed8;
+      --completed-blue-gradient: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      --completed-shadow: rgba(37, 99, 235, 0.35);
+
+      /* Pastel Palette for 9 Unanswered Boxes */
+      --pastel-1: #ffe4e6; /* Rose */
+      --pastel-2: #fef3c7; /* Amber */
+      --pastel-3: #dcfce7; /* Emerald */
+      --pastel-4: #f3e8ff; /* Purple */
+      --pastel-5: #ffedd5; /* Orange */
+      --pastel-6: #ccfbf1; /* Teal */
+      --pastel-7: #fce7f3; /* Pink */
+      --pastel-8: #e0e7ff; /* Indigo */
+      --pastel-9: #fef9c3; /* Yellow */
+
+      --radius-xl: 24px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --shadow-card: 0 14px 35px -10px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
+      --shadow-tile: 0 8px 18px -4px rgba(15, 23, 42, 0.08), inset 0 2px 0 rgba(255, 255, 255, 0.7);
+      --transition-spring: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      --transition-smooth: all 0.25s ease;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      min-height: 100%;
+      width: 100%;
+      overflow-x: hidden;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 16px 14px 40px;
+      position: relative;
+    }
+
+    /* ==========================================================================
+       2. CONFETTI CANVAS OVERLAY
+       ========================================================================== */
+    #confetti-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    /* ==========================================================================
+       3. APP CONTAINER & VIEW MANAGEMENT
+       ========================================================================== */
+    .app-shell {
+      width: 100%;
+      max-width: 460px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 10;
+    }
+
+    .view {
+      width: 100%;
+      animation: viewFadeIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .view.hidden {
+      display: none;
+    }
+
+    @keyframes viewFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.985);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* ==========================================================================
+       4. VIEW A: HEADER & PROGRESS BAR
+       ========================================================================== */
+    .header-card {
+      background: var(--card-bg);
+      border-radius: var(--radius-xl);
+      padding: 22px 20px 20px;
+      box-shadow: var(--shadow-card);
+      text-align: center;
+      margin-bottom: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+    }
+
+    .eyebrow-pill {
+      display: inline-block;
+      background: #eff6ff;
+      color: var(--completed-blue);
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 12px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+
+    .main-title {
+      font-family: 'Fredoka', sans-serif;
+      font-size: 1.95rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: var(--text-main);
+      line-height: 1.15;
+      margin-bottom: 6px;
+    }
+
+    .instruction-text {
+      font-size: 0.92rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-bottom: 16px;
+    }
+
+    /* Progress Bar Area */
+    .progress-wrapper {
+      background: #f8fafc;
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .progress-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .progress-count {
+      font-family: 'Fredoka', sans-serif;
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--completed-blue);
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 12px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--completed-blue-gradient);
+      border-radius: 999px;
+      transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* ==========================================================================
+       5. COMPLETION BANNER (SHOWN AT 9/9)
+       ========================================================================== */
+    .completion-banner {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #3b82f6 100%);
+      color: #ffffff;
+      border-radius: var(--radius-xl);
+      padding: 20px 18px;
+      text-align: center;
+      margin-bottom: 18px;
+      box-shadow: 0 16px 32px -8px rgba(37, 99, 235, 0.45);
+      animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .completion-banner.hidden {
+      display: none;
+    }
+
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.85); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    .completion-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(4px);
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .completion-title {
+      font-family: 'Fredoka', sans-serif;
+      font-size: 1.55rem;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 6px;
+    }
+
+    .completion-subtitle {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #dbeafe;
+    }
+
+    /* ==========================================================================
+       6. VIEW A: 3x3 BINGO GRID
+       ========================================================================== */
+    .bingo-board-card {
+      background: var(--card-bg);
+      border-radius: var(--radius-xl);
+      padding: 16px;
+      box-shadow: var(--shadow-card);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+    }
+
+    .bingo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 13px;
+      width: 100%;
+    }
+
+    .bingo-tile {
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      border: none;
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      box-shadow: var(--shadow-tile);
+      transition: background 0.4s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+      padding: 16%;
+      outline: none;
+      user-select: none;
+    }
+
+    .bingo-tile:hover {
+      transform: translateY(-3px) scale(1.02);
+    }
+
+    .bingo-tile:active {
+      transform: scale(0.95);
+    }
+
+    /* Pastel colors for each of the 9 unanswered slots */
+    .bingo-tile[data-pastel="1"] { background-color: var(--pastel-1); color: #be123c; }
+    .bingo-tile[data-pastel="2"] { background-color: var(--pastel-2); color: #b45309; }
+    .bingo-tile[data-pastel="3"] { background-color: var(--pastel-3); color: #15803d; }
+    .bingo-tile[data-pastel="4"] { background-color: var(--pastel-4); color: #7e22ce; }
+    .bingo-tile[data-pastel="5"] { background-color: var(--pastel-5); color: #c2410c; }
+    .bingo-tile[data-pastel="6"] { background-color: var(--pastel-6); color: #0f766e; }
+    .bingo-tile[data-pastel="7"] { background-color: var(--pastel-7); color: #be185d; }
+    .bingo-tile[data-pastel="8"] { background-color: var(--pastel-8); color: #4338ca; }
+    .bingo-tile[data-pastel="9"] { background-color: var(--pastel-9); color: #a16207; }
+
+    /* Completed State: Strong Blue */
+    .bingo-tile.is-completed {
+      background: var(--completed-blue-gradient) !important;
+      color: #ffffff !important;
+      box-shadow: 0 10px 20px -4px var(--completed-shadow), inset 0 2px 0 rgba(255, 255, 255, 0.35);
+    }
+
+    .bingo-tile svg {
+      width: 100%;
+      height: 100%;
+      max-width: 58px;
+      max-height: 58px;
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .bingo-tile:hover svg {
+      transform: scale(1.08) rotate(-3deg);
+    }
+
+    .board-hint {
+      text-align: center;
+      margin-top: 14px;
+      font-size: 0.8rem;
+      color: var(--text-light);
+      font-weight: 600;
+    }
+
+    /* ==========================================================================
+       7. VIEW B: QUESTION DETAIL VIEW
+       ========================================================================== */
+    .detail-card {
+      background: var(--card-bg);
+      border-radius: var(--radius-xl);
+      padding: 24px 20px;
+      box-shadow: var(--shadow-card);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+    }
+
+    .detail-top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .detail-icon-badge {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 11px;
+      box-shadow: var(--shadow-tile);
+      transition: var(--transition-smooth);
+    }
+
+    .detail-icon-badge svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .detail-icon-badge.is-completed {
+      background: var(--completed-blue-gradient) !important;
+      color: #ffffff !important;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #dbeafe;
+      color: var(--completed-blue-dark);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      padding: 7px 14px;
+      border-radius: 999px;
+      text-transform: uppercase;
+    }
+
+    .status-badge.hidden {
+      display: none;
+    }
+
+    .question-box {
+      background: #f8fafc;
+      border-radius: var(--radius-lg);
+      padding: 18px 16px;
+      border: 1px solid #e2e8f0;
+      margin-bottom: 18px;
+    }
+
+    .question-prompt-tag {
+      font-size: 0.74rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--completed-blue);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .question-main-text {
+      font-family: 'Fredoka', sans-serif;
+      font-size: 1.32rem;
+      font-weight: 600;
+      color: var(--text-main);
+      line-height: 1.32;
+      margin-bottom: 10px;
+    }
+
+    .question-followup-text {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: #ffffff;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border-left: 4px solid var(--completed-blue);
+    }
+
+    /* Form Controls */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 7px;
+    }
+
+    .form-input,
+    .form-textarea {
+      width: 100%;
+      font-family: inherit;
+      font-size: 1rem; /* 16px prevents iOS Safari auto-zoom on focus */
+      color: var(--text-main);
+      background: #ffffff;
+      border: 2px solid #cbd5e1;
+      border-radius: var(--radius-md);
+      padding: 13px 14px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+      outline: none;
+    }
+
+    .form-input:focus,
+    .form-textarea:focus {
+      border-color: var(--completed-blue);
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
+    }
+
+    .form-textarea {
+      min-height: 92px;
+      resize: vertical;
+    }
+
+    /* Read-Only / Disabled State for Completed Answers */
+    .form-input:disabled,
+    .form-input[readonly],
+    .form-textarea:disabled,
+    .form-textarea[readonly] {
+      background-color: #f1f5f9;
+      border-color: #cbd5e1;
+      color: #1e293b;
+      font-weight: 600;
+      cursor: not-allowed;
+      opacity: 1;
+    }
+
+    /* Action Buttons */
+    .button-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      margin-top: 22px;
+    }
+
+    .btn {
+      width: 100%;
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 15px 20px;
+      font-family: 'Fredoka', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: var(--transition-smooth);
+      user-select: none;
+    }
+
+    .btn-primary {
+      background: var(--completed-blue-gradient);
+      color: #ffffff;
+      box-shadow: 0 8px 20px -4px var(--completed-shadow);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px -4px var(--completed-shadow);
+    }
+
+    .btn-primary:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .btn-primary:disabled {
+      background: #cbd5e1;
+      color: #64748b;
+      box-shadow: none;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-primary.hidden {
+      display: none;
+    }
+
+    .btn-secondary {
+      background: #f1f5f9;
+      color: var(--text-main);
+      border: 1px solid #e2e8f0;
+    }
+
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+
+    .btn-secondary:active {
+      transform: scale(0.98);
+    }
+
+    /* ==========================================================================
+       8. RESPONSIVE TWEAKS FOR SMALL MOBILE SCREENS
+       ========================================================================== */
+    @media (max-width: 360px) {
+      .main-title {
+        font-size: 1.65rem;
+      }
+      .bingo-grid {
+        gap: 10px;
+      }
+      .bingo-tile {
+        border-radius: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Confetti Canvas for 9/9 Celebration -->
+  <canvas id="confetti-canvas" aria-hidden="true"></canvas>
+
+  <main class="app-shell">
+    <!-- ======================================================================
+         VIEW A: MAIN BINGO CARD
+         ====================================================================== -->
+    <section id="view-board" class="view" aria-label="Main Bingo Card">
+      <header class="header-card">
+        <span class="eyebrow-pill">CONNECT · DISCOVER · BUILD YOUR TRIBE</span>
+        <h1 class="main-title">FIND YOUR PEOPLE</h1>
+        <p class="instruction-text">Meet 9 different people. Ask, discover, and connect!</p>
+
+        <div class="progress-wrapper">
+          <div class="progress-meta">
+            <span class="progress-label">Tribe Progress</span>
+            <span id="progress-text" class="progress-count">0/9 Completed</span>
+          </div>
+          <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="9" aria-valuenow="0" id="progress-bar-track">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Completion Banner (Appears when 9/9 boxes are saved) -->
+      <div id="completion-banner" class="completion-banner hidden" role="status" aria-live="polite">
+        <span class="completion-badge">9/9 Completed</span>
+        <h2 class="completion-title">BINGO! YOU FOUND YOUR PEOPLE!</h2>
+        <p class="completion-subtitle">Now find your secret tribe!</p>
+      </div>
+
+      <!-- 3x3 Bingo Grid -->
+      <div class="bingo-board-card">
+        <div id="bingo-grid" class="bingo-grid" role="grid" aria-label="3 by 3 Bingo Grid">
+          <!-- 9 tiles injected dynamically via JavaScript -->
+        </div>
+        <p class="board-hint">Tap any tile to reveal a question &amp; meet someone new</p>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         VIEW B: QUESTION DETAIL VIEW
+         ====================================================================== -->
+    <section id="view-detail" class="view hidden" aria-label="Question Details">
+      <div class="detail-card">
+        <div class="detail-top-bar">
+          <div id="detail-icon-badge" class="detail-icon-badge" aria-hidden="true">
+            <!-- Selected box icon injected here -->
+          </div>
+          <span id="saved-status-label" class="status-badge hidden">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            ANSWER SAVED
+          </span>
+        </div>
+
+        <div class="question-box">
+          <span id="detail-instruction" class="question-prompt-tag">Find someone who matches this question and ask them!</span>
+          <h2 id="detail-question" class="question-main-text">Question text goes here</h2>
+          <p id="detail-followup" class="question-followup-text">Follow-up question goes here</p>
+        </div>
+
+        <form id="answer-form" novalidate>
+          <div class="form-group">
+            <label for="input-name" class="form-label">Colleague's Name</label>
+            <input
+              type="text"
+              id="input-name"
+              class="form-input"
+              placeholder="e.g., Maya Lin"
+              autocomplete="off"
+              maxlength="80"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="input-answer" class="form-label">Their Answer / Follow-up Response</label>
+            <textarea
+              id="input-answer"
+              class="form-textarea"
+              placeholder="Write their fun answer here..."
+              maxlength="300"
+              required
+            ></textarea>
+          </div>
+
+          <div class="button-stack">
+            <button type="submit" id="btn-save" class="btn btn-primary" disabled>
+              SAVE ANSWER
+            </button>
+            <button type="button" id="btn-back" class="btn btn-secondary">
+              BACK TO BINGO CARD
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    /**
+     * ==========================================================================
+     * QUESTION DATA CONFIGURATION (EASY TO CUSTOMIZE)
+     * ==========================================================================
+     * To replace the game questions for a future event:
+     * Simply edit the `question`, `followUp`, and optionally `icon` SVG below.
+     * Keep 9 items in the `BINGO_QUESTIONS` array with unique `id` values (1–9).
+     */
+    const BINGO_QUESTIONS = [
+      {
+        id: 1,
+        pastelSlot: 1,
+        question: "Are you a coffee or bubble tea addict?",
+        followUp: "Follow-up: What's your usual order?",
+        // Playful Bubble Tea / Iced Coffee Cup SVG
+        icon: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 22h28l-3 32a4 4 0 0 1-4 4H25a4 4 0 0 1-4-4l-3-32Z"/>
+          <path d="M14 22h36"/>
+          <path d="M36 22l6-14"/>
+          <circle cx="27" cy="48" r="2.5" fill="currentColor"/>
+          <circle cx="37" cy="49" r="2.5" fill="currentColor"/>
+          <circle cx="32" cy="42" r="2.5" fill="currentColor"/>
+        </svg>`
+      },
+      {
+        id: 2,
+        pastelSlot: 2,
+        question: "Are you a night owl rather than an early bird?",
+        followUp: "Follow-up: What's the latest you've stayed up?",
+        // Crescent Moon & Stars SVG
+        icon: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M46 40A20 20 0 0 1 24 18a19.9 19.9 0 0 1 3-10.5A22 22 0 1 0 56.5 37 19.9 19.9 0 0 1 46 40Z"/>
+          <path d="M44 12v8M40 16h8"/>
+          <circle cx="52" cy="24" r="1.5" fill="currentColor"/>
+        </svg>`
+      },
+      {
+        id: 3,
+        pastelSlot: 3,
+        question: "Do you love staying home more than going out?",
+        followUp: "Follow-up: What's your perfect lazy weekend?",
+        // Cozy Home with Heart SVG
+        icon: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 30L32 12l22 18"/>
+          <path d="M16 26v24a4 4 0 0 0 4 4h24a4 4 0 0 0 4-4V26"/>
+          <path d="M32 43s-7-4.5-7-9.2a4.2 4.2 0 0 1 7-3.1 4.2 4.2 0 0 1 7 3.1c0 4.7-7 9.2-7 9.2Z" fill="currentColor" stroke="none"/>
+        </svg>`
+      },
+      {
+        id: 4,
+        pastelSlot: 4,
+        question: "Do you always have snacks at your desk?",
+        followUp: "Follow-up: What's your favourite snack?",
+        // Bite-taken Cookie SVG
+        icon: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M52 32a20 20 0 1 1-20-20c0 4.4 3.6 8 8 8 0 4.4 3.6 8 8 8 1.5 0 2.9-.4 4-1.1Z"/>
+          <circle cx="24" cy="26" r="2.5" fill="currentColor"/>
+          <circle cx="22" cy="39" r="2.5" fill="currentColor"/>
+          <circle cx="34" cy="42" r="2.5" fill="currentColor"/>
+          <circle cx="36" cy="31" r="2" fill="currentColor"/>
+        </svg>`
+      },
+      {
+        id: 5,
+        pastelSlot: 5,
+        question: "Do you have more than 50 unread messages?",
+        followUp: "Follow-up: Which app is responsible?",
+        // Chat Bubble with Notification Badge SVG
+        icon: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M48 26v10a12 12 0 0 1-12 12H22l-10 8V26a12 12 0 0 1 12-12h10"/>
+          <circle cx="46" cy="18" r="8"/>
+          <path d="M22 29h14M22 37h9"/>
+        </svg>`
+      },
+      {
+        id: 6,
+        pastelSlot: 6,
+        question: "Can you sing at least one entire song by heart?",
+        followUp: "Follow-up: What's your karaoke go-to song?",
+        // Karaoke Microphone & Music Note SVG
+        icon: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="24" y="10" width="16" height="26" rx="8"/>
+          <path d="M16 28a16 16 0 0 0 32 0"/>
+          <path d="M32 44v10M24 54h16"/>
+          <path d="M24 22h16"/>
+        </svg>`
+      },
+      {
+        id: 7,
+        pastelSlot: 7,
+        question: "Do you have an unusual or funny nickname?",
+        followUp: "Follow-up: What's the story behind it?",
+        // Name Tag / Smile Badge SVG
+        icon: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="10" y="16" width="44" height="32" rx="8"/>
+          <circle cx="24" cy="30" r="2.5" fill="currentColor"/>
+          <circle cx="40" cy="30" r="2.5" fill="currentColor"/>
+          <path d="M25 38c2 3 12 3 14 0"/>
+        </svg>`
+      },
+      {
+        id: 8,
+        pastelSlot: 8,
+        question: "Do you have a hidden talent?",
+        followUp: "Follow-up: Show us or tell us what it is!",
+        // Magic Sparkles / Starburst SVG
+        icon: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M28 10l4.5 13.5L46 28l-13.5 4.5L28 46l-4.5-13.5L10 28l13.5-4.5L28 10Z"/>
+          <path d="M48 40l2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6Z"/>
+        </svg>`
+      },
+      {
+        id: 9,
+        pastelSlot: 9,
+        question: "Do you have an irrational fear?",
+        followUp: "Follow-up: What is it?",
+        // Friendly Playful Ghost SVG
+        icon: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 52V28a16 16 0 0 1 32 0v24l-5.3-4-5.3 4-5.4-4-5.3 4-5.3-4L16 52Z"/>
+          <circle cx="26" cy="27" r="2.5" fill="currentColor"/>
+          <circle cx="38" cy="27" r="2.5" fill="currentColor"/>
+          <ellipse cx="32" cy="36" rx="3" ry="4"/>
+        </svg>`
+      }
+    ];
+
+    /**
+     * ==========================================================================
+     * IN-MEMORY SESSION STATE ONLY
+     * ==========================================================================
+     * Privacy Guarantee:
+     * All data is stored strictly inside this JavaScript variable (`sessionAnswers`).
+     * No localStorage, sessionStorage, cookies, IndexedDB, or network requests are used.
+     * Refreshing or closing the tab permanently clears everything.
+     */
+    const sessionAnswers = {}; // Format: { [questionId]: { name: string, answer: string } }
+    let activeQuestionId = null;
+    let celebrationTriggered = false;
+
+    /* ==========================================================================
+       DOM ELEMENT REFERENCES
+       ========================================================================== */
+    const viewBoard = document.getElementById("view-board");
+    const viewDetail = document.getElementById("view-detail");
+    const bingoGridEl = document.getElementById("bingo-grid");
+    const progressTextEl = document.getElementById("progress-text");
+    const progressFillEl = document.getElementById("progress-fill");
+    const progressTrackEl = document.getElementById("progress-bar-track");
+    const completionBannerEl = document.getElementById("completion-banner");
+
+    // Detail View Elements
+    const detailIconBadgeEl = document.getElementById("detail-icon-badge");
+    const savedStatusLabelEl = document.getElementById("saved-status-label");
+    const detailInstructionEl = document.getElementById("detail-instruction");
+    const detailQuestionEl = document.getElementById("detail-question");
+    const detailFollowupEl = document.getElementById("detail-followup");
+    const answerFormEl = document.getElementById("answer-form");
+    const inputNameEl = document.getElementById("input-name");
+    const inputAnswerEl = document.getElementById("input-answer");
+    const btnSaveEl = document.getElementById("btn-save");
+    const btnBackEl = document.getElementById("btn-back");
+
+    /* ==========================================================================
+       RENDER & VIEW NAVIGATION FUNCTIONS
+       ========================================================================== */
+
+    /**
+     * Renders the 3x3 Bingo Grid based on BINGO_QUESTIONS and current sessionAnswers.
+     * Default state shows ONLY the icon; completed state turns the box BLUE.
+     */
+    function renderBingoBoard() {
+      bingoGridEl.innerHTML = "";
+
+      BINGO_QUESTIONS.forEach((item, index) => {
+        const isCompleted = Boolean(sessionAnswers[item.id]);
+        const tileBtn = document.createElement("button");
+        tileBtn.type = "button";
+        tileBtn.className = "bingo-tile" + (isCompleted ? " is-completed" : "");
+        tileBtn.setAttribute("data-pastel", item.pastelSlot);
+        tileBtn.setAttribute(
+          "aria-label",
+          isCompleted
+            ? `Bingo tile ${index + 1}, completed`
+            : `Bingo tile ${index + 1}, unanswered`
+        );
+
+        // Display ONLY the SVG icon inside the tile
+        tileBtn.innerHTML = item.icon;
+
+        tileBtn.addEventListener("click", () => openQuestionDetail(item.id));
+        bingoGridEl.appendChild(tileBtn);
+      });
+
+      updateProgressUI();
+    }
+
+    /**
+     * Updates the X/9 counter, visual progress bar, and checks for 9/9 Bingo completion.
+     */
+    function updateProgressUI() {
+      const total = BINGO_QUESTIONS.length;
+      const completedCount = Object.keys(sessionAnswers).length;
+      const percentage = Math.round((completedCount / total) * 100);
+
+      progressTextEl.textContent = `${completedCount}/${total} Completed`;
+      progressFillEl.style.width = `${percentage}%`;
+      progressTrackEl.setAttribute("aria-valuenow", completedCount);
+
+      if (completedCount === total) {
+        completionBannerEl.classList.remove("hidden");
+        if (!celebrationTriggered) {
+          celebrationTriggered = true;
+          launchConfettiCelebration();
+        }
+      } else {
+        completionBannerEl.classList.add("hidden");
+      }
+    }
+
+    /**
+     * Opens View B (Question Detail) for either an unanswered or already saved box.
+     */
+    function openQuestionDetail(questionId) {
+      const questionObj = BINGO_QUESTIONS.find((q) => q.id === questionId);
+      if (!questionObj) return;
+
+      activeQuestionId = questionId;
+      const savedEntry = sessionAnswers[questionId];
+
+      // Populate icon badge with matching pastel or blue style
+      detailIconBadgeEl.innerHTML = questionObj.icon;
+      detailIconBadgeEl.style.backgroundColor = `var(--pastel-${questionObj.pastelSlot})`;
+      detailIconBadgeEl.style.color = getPastelTextColor(questionObj.pastelSlot);
+
+      // Populate question & follow-up
+      detailQuestionEl.textContent = questionObj.question;
+      detailFollowupEl.textContent = questionObj.followUp;
+
+      if (savedEntry) {
+        // READ-ONLY MODE (Previously saved box)
+        detailIconBadgeEl.classList.add("is-completed");
+        savedStatusLabelEl.classList.remove("hidden");
+        detailInstructionEl.textContent = "Connection recorded! Here's who you met:";
+
+        inputNameEl.value = savedEntry.name;
+        inputAnswerEl.value = savedEntry.answer;
+        inputNameEl.disabled = true;
+        inputNameEl.readOnly = true;
+        inputAnswerEl.disabled = true;
+        inputAnswerEl.readOnly = true;
+
+        // Hide SAVE button so saved answers can never be edited or overwritten
+        btnSaveEl.classList.add("hidden");
+        btnSaveEl.disabled = true;
+      } else {
+        // EDITABLE MODE (Unanswered box)
+        detailIconBadgeEl.classList.remove("is-completed");
+        savedStatusLabelEl.classList.add("hidden");
+        detailInstructionEl.textContent = "Find someone who matches this question and ask them!";
+
+        inputNameEl.value = "";
+        inputAnswerEl.value = "";
+        inputNameEl.disabled = false;
+        inputNameEl.readOnly = false;
+        inputAnswerEl.disabled = false;
+        inputAnswerEl.readOnly = false;
+
+        btnSaveEl.classList.remove("hidden");
+        btnSaveEl.disabled = true; // Disabled until both fields have non-empty values
+      }
+
+      // Switch views without page reload
+      viewBoard.classList.add("hidden");
+      viewDetail.classList.remove("hidden");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    /**
+     * Returns from View B to View A without losing any session data.
+     */
+    function returnToBingoCard() {
+      activeQuestionId = null;
+      viewDetail.classList.add("hidden");
+      viewBoard.classList.remove("hidden");
+      renderBingoBoard();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    /**
+     * Helper to match icon stroke color to pastel slot in Detail View badge.
+     */
+    function getPastelTextColor(slot) {
+      const colors = {
+        1: "#be123c",
+        2: "#b45309",
+        3: "#15803d",
+        4: "#7e22ce",
+        5: "#c2410c",
+        6: "#0f766e",
+        7: "#be185d",
+        8: "#4338ca",
+        9: "#a16207"
+      };
+      return colors[slot] || "#0f172a";
+    }
+
+    /* ==========================================================================
+       INPUT VALIDATION & SAVE HANDLERS
+       ========================================================================== */
+
+    /**
+     * Enables SAVE ANSWER button only when both inputs contain non-whitespace text.
+     */
+    function validateFormInputs() {
+      if (activeQuestionId === null || sessionAnswers[activeQuestionId]) {
+        btnSaveEl.disabled = true;
+        return;
+      }
+      const nameVal = inputNameEl.value.trim();
+      const answerVal = inputAnswerEl.value.trim();
+      btnSaveEl.disabled = !(nameVal.length > 0 && answerVal.length > 0);
+    }
+
+    inputNameEl.addEventListener("input", validateFormInputs);
+    inputAnswerEl.addEventListener("input", validateFormInputs);
+
+    /**
+     * Saves the colleague's name and answer in memory and returns to the Bingo card.
+     */
+    answerFormEl.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      if (activeQuestionId === null) return;
+
+      // Prevent overwriting an already completed box
+      if (sessionAnswers[activeQuestionId]) return;
+
+      const cleanName = inputNameEl.value.trim();
+      const cleanAnswer = inputAnswerEl.value.trim();
+
+      if (!cleanName || !cleanAnswer) {
+        validateFormInputs();
+        return;
+      }
+
+      // Store in memory for the current session only
+      sessionAnswers[activeQuestionId] = {
+        name: cleanName,
+        answer: cleanAnswer
+      };
+
+      // Automatically return to main bingo card (which renders the box BLUE & updates progress)
+      returnToBingoCard();
+    });
+
+    btnBackEl.addEventListener("click", () => {
+      returnToBingoCard();
+    });
+
+    /* ==========================================================================
+       CELEBRATORY CONFETTI ANIMATION (PURE VANILLA JS + CANVAS)
+       ========================================================================== */
+    function launchConfettiCelebration() {
+      const canvas = document.getElementById("confetti-canvas");
+      const ctx = canvas.getContext("2d");
+
+      function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+      resizeCanvas();
+      window.addEventListener("resize", resizeCanvas);
+
+      const colors = [
+        "#2563eb", "#3b82f6", "#f59e0b", "#10b981",
+        "#ec4899", "#8b5cf6", "#f97316", "#06b6d4"
+      ];
+
+      const particles = Array.from({ length: 120 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * -canvas.height,
+        w: Math.random() * 10 + 6,
+        h: Math.random() * 6 + 4,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        speedY: Math.random() * 3.5 + 2.2,
+        speedX: (Math.random() - 0.5) * 2.5,
+        rotation: Math.random() * 360,
+        rotationSpeed: (Math.random() - 0.5) * 8,
+        shape: Math.random() > 0.35 ? "rect" : "circle"
+      }));
+
+      let animationFrameId;
+      const startTime = performance.now();
+      const duration = 5500; // 5.5 seconds of festive confetti
+
+      function animate(now) {
+        const elapsed = now - startTime;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        particles.forEach((p) => {
+          p.y += p.speedY;
+          p.x += p.speedX + Math.sin(p.y * 0.02) * 0.6;
+          p.rotation += p.rotationSpeed;
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rotation * Math.PI) / 180);
+          ctx.fillStyle = p.color;
+          ctx.globalAlpha = elapsed > duration - 1200 ? Math.max(0, (duration - elapsed) / 1200) : 1;
+
+          if (p.shape === "circle") {
+            ctx.beginPath();
+            ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          }
+          ctx.restore();
+        });
+
+        if (elapsed < duration) {
+          animationFrameId = requestAnimationFrame(animate);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          cancelAnimationFrame(animationFrameId);
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    /* ==========================================================================
+       INITIALIZE APP ON LOAD
+       ========================================================================== */
+    renderBingoBoard();
+  </script>
+</body>
+</html>
